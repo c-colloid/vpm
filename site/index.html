@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ｺﾛｲﾄﾞのVPMパッケージ</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@500;700;900&family=IBM+Plex+Sans+JP:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  :root {
+    --bg: #e9edf5;
+    --bg-hi: #f2f5fa;   /* 凸面の受光側 */
+    --bg-lo: #dfe4ef;   /* 凸面の陰側 */
+    --sh-dark: rgba(164, 176, 201, 0.55);
+    --sh-light: rgba(255, 255, 255, 0.92);
+    --ink: #2b3040;
+    --muted: #78809a;
+    --accent: #3b5bfd;
+    --accent-ink: #3050e8;
+    --accent-hi: #5b78ff;
+    --amber: #b07a14;
+    --mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", monospace;
+    --sans: "IBM Plex Sans JP", "Hiragino Sans", "Noto Sans JP", sans-serif;
+    --disp: "Zen Kaku Gothic New", "Hiragino Sans", sans-serif;
+    --raise: 9px 9px 22px var(--sh-dark), -9px -9px 22px var(--sh-light);
+    --raise-sm: 4px 4px 10px var(--sh-dark), -4px -4px 10px var(--sh-light);
+    --raise-lg: 12px 12px 28px var(--sh-dark), -12px -12px 28px var(--sh-light);
+    --well: inset 5px 5px 12px var(--sh-dark), inset -5px -5px 12px var(--sh-light);
+    --well-sm: inset 3px 3px 7px var(--sh-dark), inset -3px -3px 7px var(--sh-light);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #262b37;
+      --bg-hi: #2c3242;
+      --bg-lo: #20242f;
+      --sh-dark: rgba(10, 13, 20, 0.6);
+      --sh-light: rgba(74, 84, 108, 0.35);
+      --ink: #e6eaf4;
+      --muted: #98a0b5;
+      --accent: #7d95ff;
+      --accent-ink: #9fb1ff;
+      --accent-hi: #8fa5ff;
+      --amber: #d9a44a;
+    }
+  }
+  * { box-sizing: border-box; }
+  html { background: var(--bg); }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.8;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--accent-ink); text-decoration: none; }
+  .page { max-width: 800px; margin: 0 auto; padding: 0 24px; }
+
+  /* ---- ヒーロー ---- */
+  header { padding: 72px 0 44px; }
+  .eyebrow {
+    font-family: var(--mono); font-size: 12px; letter-spacing: 0.08em;
+    color: var(--muted); margin: 0 0 14px;
+  }
+  h1 {
+    font-family: var(--disp); font-weight: 900;
+    font-size: clamp(1.9rem, 5.5vw, 2.7rem);
+    letter-spacing: 0.015em; line-height: 1.3;
+    margin: 0 0 10px; text-wrap: balance;
+  }
+  .lead { color: var(--muted); max-width: 42em; margin: 0 0 34px; }
+
+  /* URL バー: 凹面のウェルに URL、隣に凸面の CTA */
+  .repo-bar { display: flex; align-items: stretch; gap: 16px; flex-wrap: wrap; }
+  .repo-url {
+    flex: 1; min-width: 240px;
+    display: flex; align-items: center; gap: 12px;
+    font-family: var(--mono); font-size: 13px; color: var(--ink);
+    background: var(--bg);
+    border-radius: 16px;
+    box-shadow: var(--well);
+    padding: 0 10px 0 20px;
+  }
+  .repo-url code { flex: 1; overflow-x: auto; white-space: nowrap; padding: 16px 0; }
+  .repo-url code .scheme { color: var(--muted); }
+  .repo-url button {
+    font-family: var(--sans); font-size: 12.5px; font-weight: 700;
+    color: var(--accent-ink);
+    background: linear-gradient(145deg, var(--bg-hi), var(--bg-lo));
+    border: 0; border-radius: 11px; cursor: pointer;
+    padding: 9px 16px; white-space: nowrap;
+    box-shadow: var(--raise-sm);
+    transition: box-shadow 0.15s ease, transform 0.15s ease;
+  }
+  .repo-url button:hover { transform: translateY(-1px); }
+  .repo-url button:active { box-shadow: var(--well-sm); transform: none; }
+  .btn-add {
+    display: inline-flex; align-items: center; justify-content: center;
+    font-family: var(--sans); font-size: 14.5px; font-weight: 700;
+    color: #fff;
+    background: linear-gradient(145deg, var(--accent-hi), var(--accent));
+    border-radius: 16px; padding: 0 28px;
+    text-decoration: none;
+    box-shadow: 7px 7px 16px rgba(59, 91, 253, 0.30), -6px -6px 14px var(--sh-light);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+  }
+  .btn-add:hover { transform: translateY(-1px); }
+  .btn-add:active { transform: translateY(1px); box-shadow: 3px 3px 8px rgba(59, 91, 253, 0.3), -3px -3px 8px var(--sh-light); }
+  .bar-note { font-size: 12px; color: var(--muted); margin: 14px 4px 0; }
+
+  /* ---- パッケージ: 凸面の横長カードを縦積み ---- */
+  .section-head { display: flex; align-items: center; gap: 12px; margin: 40px 0 22px; }
+  .section-head h2 {
+    font-family: var(--disp); font-weight: 700; font-size: 16px;
+    margin: 0; letter-spacing: 0.02em;
+  }
+  .count {
+    font-family: var(--mono); font-size: 12px; font-weight: 500;
+    color: var(--accent-ink);
+    background: var(--bg);
+    border-radius: 999px; padding: 2px 12px;
+    box-shadow: var(--well-sm);
+  }
+  .stack { display: flex; flex-direction: column; gap: 26px; margin-bottom: 64px; }
+  .card {
+    display: flex; align-items: center; gap: 22px;
+    background: linear-gradient(150deg, var(--bg-hi), var(--bg-lo));
+    border-radius: 24px;
+    padding: 24px 26px;
+    box-shadow: var(--raise);
+    transition: box-shadow 0.2s ease, transform 0.2s ease;
+  }
+  .card:hover { box-shadow: var(--raise-lg); transform: translateY(-2px); }
+
+  /* シャーレ(凹面の円)に浮かぶコロイド粒子 */
+  .dish {
+    width: 62px; height: 62px; flex-shrink: 0;
+    border-radius: 50%;
+    background: var(--bg);
+    box-shadow: var(--well);
+    align-self: flex-start; margin-top: 4px;
+  }
+  .card-main { flex: 1; min-width: 0; }
+  .card-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 1px; }
+  .pkg-name {
+    font-family: var(--disp); font-weight: 700; font-size: 17.5px;
+    margin: 0; line-height: 1.45;
+  }
+  .badge {
+    font-family: var(--mono); font-size: 11.5px; font-weight: 500;
+    color: var(--accent-ink);
+    background: var(--bg);
+    border-radius: 999px; padding: 2px 11px;
+    box-shadow: var(--well-sm);
+    font-variant-numeric: tabular-nums;
+  }
+  .badge.pre { color: var(--amber); }
+  .pkg-id { font-family: var(--mono); font-size: 11.5px; color: var(--muted); margin: 0 0 7px; word-break: break-all; }
+  .pkg-desc { color: var(--muted); font-size: 13.5px; line-height: 1.7; margin: 0; max-width: 44em; white-space: pre-line; }
+  .card-actions {
+    display: flex; flex-direction: column; gap: 12px;
+    flex-shrink: 0; align-self: center;
+  }
+  .card-actions a {
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12.5px; font-weight: 700;
+    color: var(--accent-ink);
+    background: linear-gradient(145deg, var(--bg-hi), var(--bg-lo));
+    border-radius: 12px; padding: 8px 20px;
+    box-shadow: var(--raise-sm);
+    transition: box-shadow 0.15s ease, transform 0.15s ease;
+  }
+  .card-actions a:hover { transform: translateY(-1px); }
+  .card-actions a:active { box-shadow: var(--well-sm); transform: none; }
+  .card-actions a.quiet {
+    background: transparent; box-shadow: none; color: var(--muted);
+    padding: 2px 20px;
+  }
+  .card-actions a.quiet:hover { color: var(--accent-ink); transform: none; }
+  .status { color: var(--muted); text-align: center; padding: 56px 0; }
+
+  footer {
+    padding: 8px 0 48px;
+    display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px;
+    font-size: 12px; color: var(--muted);
+  }
+  footer a { color: var(--muted); }
+  footer a:hover { color: var(--accent-ink); }
+
+  .toast {
+    position: fixed; left: 50%; bottom: 30px; transform: translateX(-50%) translateY(8px);
+    z-index: 10;
+    background: var(--ink); color: var(--bg);
+    font-size: 13px; font-weight: 500;
+    border-radius: 12px; padding: 10px 22px;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  @media (max-width: 620px) {
+    header { padding-top: 52px; }
+    .btn-add { width: 100%; padding: 14px 0; }
+    .card { flex-wrap: wrap; }
+    .card-actions { flex-direction: row; width: 100%; }
+    .card-actions a { flex: 1; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; }
+    .btn-add:hover, .card:hover, .repo-url button:hover, .card-actions a:hover { transform: none; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+  <header>
+    <p class="eyebrow" id="eyebrow">jp.colloid.vpm</p>
+    <h1 id="listing-name">ｺﾛｲﾄﾞのVPMパッケージ</h1>
+    <p class="lead" id="listing-desc">VRChat / Unity 向けツールの配布リポジトリです。VCC / ALCOM に追加すると、導入とアップデートが自動になります。</p>
+    <div class="repo-bar">
+      <div class="repo-url">
+        <code id="listing-url"></code>
+        <button id="copy-url" type="button">コピー</button>
+      </div>
+      <a class="btn-add" id="vcc-add" href="#">VCC に追加</a>
+    </div>
+    <p class="bar-note">ALCOM の場合は「リポジトリを追加」に同じ URL を貼り付けてください。</p>
+  </header>
+
+  <main>
+    <div class="section-head">
+      <h2>パッケージ</h2>
+      <span class="count" id="pkg-count"></span>
+    </div>
+    <div class="stack" id="packages"></div>
+    <div class="status" id="status" hidden></div>
+  </main>
+
+  <footer>
+    <span id="generated"></span>
+    <a href="https://github.com/c-colloid" target="_blank" rel="noopener">github.com/c-colloid</a>
+  </footer>
+</div>
+<div class="toast" id="toast">URL をコピーしました</div>
+
+<script>
+(async function () {
+  const listingUrl = new URL("index.json", location.href).href;
+  const urlEl = document.getElementById("listing-url");
+  const m = listingUrl.match(/^(https?:\/\/)(.*)$/) || [null, "", listingUrl];
+  const scheme = document.createElement("span");
+  scheme.className = "scheme";
+  scheme.textContent = m[1];
+  urlEl.append(scheme, document.createTextNode(m[2]));
+
+  document.getElementById("vcc-add").href =
+    "vcc://vpm/addRepo?url=" + encodeURIComponent(listingUrl);
+
+  document.getElementById("copy-url").addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(listingUrl);
+      const toast = document.getElementById("toast");
+      toast.classList.add("show");
+      setTimeout(() => toast.classList.remove("show"), 1700);
+    } catch (_) { /* clipboard 不許可時は何もしない */ }
+  });
+
+  // ---- パッケージ名からシード生成する「シャーレの中のコロイド粒子」 ----
+  function seededRandom(text) {
+    let h = 2166136261;
+    for (let i = 0; i < text.length; i++) {
+      h ^= text.charCodeAt(i);
+      h = Math.imul(h, 16777619);
+    }
+    return function () {
+      h ^= h << 13; h ^= h >>> 17; h ^= h << 5;
+      return ((h >>> 0) % 100000) / 100000;
+    };
+  }
+  function makeDish(name, accent) {
+    const canvas = document.createElement("canvas");
+    canvas.className = "dish";
+    const size = 62 * 2;
+    canvas.width = size; canvas.height = size;
+    const ctx = canvas.getContext("2d");
+    const rand = seededRandom(name);
+    const dots = 7 + Math.floor(rand() * 3);
+    for (let i = 0; i < dots; i++) {
+      const angle = rand() * Math.PI * 2;
+      const dist = Math.sqrt(rand()) * size * 0.30;
+      const x = size / 2 + Math.cos(angle) * dist;
+      const y = size / 2 + Math.sin(angle) * dist;
+      const r = size * (0.045 + rand() * 0.08);
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.fillStyle = accent;
+      ctx.globalAlpha = 0.3 + rand() * 0.55;
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+    return canvas;
+  }
+
+  // prerelease を考慮した簡易 semver 比較(a > b なら正)
+  function compareVersion(a, b) {
+    const parse = v => {
+      const [core, pre] = String(v).split("-", 2);
+      return { nums: core.split(".").map(n => parseInt(n, 10) || 0), pre: pre ?? null };
+    };
+    const pa = parse(a), pb = parse(b);
+    for (let i = 0; i < 3; i++) {
+      if ((pa.nums[i] || 0) !== (pb.nums[i] || 0)) return (pa.nums[i] || 0) - (pb.nums[i] || 0);
+    }
+    if (pa.pre === pb.pre) return 0;
+    if (pa.pre === null) return 1;   // 正式版 > プレリリース
+    if (pb.pre === null) return -1;
+    return pa.pre.localeCompare(pb.pre);
+  }
+
+  const status = document.getElementById("status");
+  let index = null, meta = { packages: {} };
+  try {
+    index = await (await fetch("index.json", { cache: "no-cache" })).json();
+    try { meta = await (await fetch("meta.json", { cache: "no-cache" })).json(); } catch (_) {}
+  } catch (_) {
+    status.hidden = false;
+    status.textContent = "index.json を読み込めませんでした。";
+    return;
+  }
+
+  if (index.name) {
+    document.getElementById("listing-name").textContent = index.name;
+    document.title = index.name;
+  }
+  if (index.id) document.getElementById("eyebrow").textContent = index.id;
+  if (meta.generatedAt) {
+    document.getElementById("generated").textContent =
+      "最終更新 " + new Date(meta.generatedAt).toLocaleString("ja-JP");
+  }
+
+  const accent = getComputedStyle(document.documentElement)
+    .getPropertyValue("--accent").trim() || "#3b5bfd";
+
+  const stack = document.getElementById("packages");
+  const names = Object.keys(index.packages || {});
+  const entries = names.map(name => {
+    const versions = Object.keys(index.packages[name].versions || {});
+    if (versions.length === 0) return null;
+    versions.sort(compareVersion);
+    const stable = versions.filter(v => !v.includes("-")).pop() ?? null;
+    const newest = versions[versions.length - 1];
+    return {
+      name,
+      stable,
+      // 最新の安定版より新しいプレリリースがあれば併記する
+      prerelease: newest !== stable && newest.includes("-") ? newest : null,
+      manifest: index.packages[name].versions[stable ?? newest],
+    };
+  }).filter(Boolean);
+  entries.sort((a, b) =>
+    (a.manifest.displayName || a.name).localeCompare(b.manifest.displayName || b.name, "ja"));
+
+  document.getElementById("pkg-count").textContent = entries.length;
+  if (entries.length === 0) {
+    status.hidden = false;
+    status.textContent = "まだパッケージが登録されていません。";
+    return;
+  }
+
+  for (const entry of entries) {
+    const card = document.createElement("article");
+    card.className = "card";
+
+    card.appendChild(makeDish(entry.name, accent));
+
+    const main = document.createElement("div");
+    main.className = "card-main";
+    const head = document.createElement("div");
+    head.className = "card-head";
+    const name = document.createElement("h3");
+    name.className = "pkg-name";
+    name.textContent = entry.manifest.displayName || entry.name;
+    head.appendChild(name);
+    if (entry.stable) {
+      const badge = document.createElement("span");
+      badge.className = "badge";
+      badge.textContent = "v" + entry.stable;
+      head.appendChild(badge);
+    }
+    if (entry.prerelease) {
+      const badge = document.createElement("span");
+      badge.className = "badge pre";
+      badge.textContent = "v" + entry.prerelease;
+      head.appendChild(badge);
+    }
+    const id = document.createElement("p");
+    id.className = "pkg-id";
+    id.textContent = entry.name;
+    const desc = document.createElement("p");
+    desc.className = "pkg-desc";
+    desc.textContent = entry.manifest.description || "";
+    main.append(head, id, desc);
+
+    const actions = document.createElement("div");
+    actions.className = "card-actions";
+    const metaEntry = (meta.packages || {})[entry.name] || {};
+    const addLink = (text, href, quiet) => {
+      if (!href) return;
+      const a = document.createElement("a");
+      a.textContent = text;
+      a.href = href;
+      a.target = "_blank";
+      a.rel = "noopener";
+      if (quiet) a.className = "quiet";
+      actions.appendChild(a);
+    };
+    addLink("ドキュメント", metaEntry.docs || entry.manifest.documentationUrl, false);
+    addLink("GitHub", metaEntry.repo, true);
+    addLink("更新履歴", entry.manifest.changelogUrl, true);
+
+    card.append(main, actions);
+    stack.appendChild(card);
+  }
+})();
+</script>
+</body>
+</html>

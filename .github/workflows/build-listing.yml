@@ -1,0 +1,44 @@
+# source.json に登録したリポジトリの GitHub Releases から index.json を生成し、
+# GitHub Pages へデプロイする。
+# 新しいリリースは 6 時間ごとのスケジュール実行または手動実行(workflow_dispatch)で反映される。
+# 事前設定: リポジトリの Settings > Pages > Source を "GitHub Actions" にすること。
+name: Build listing
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+  schedule:
+    - cron: "0 */6 * * *"
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build index.json
+        run: python3 scripts/build_listing.py
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: website
+
+      - id: deployment
+        uses: actions/deploy-pages@v4
