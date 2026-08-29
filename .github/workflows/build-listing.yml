@@ -35,6 +35,9 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - uses: actions/configure-pages@v5
+        with:
+          # 初回実行時に Pages(GitHub Actions ソース)を自動で有効化する
+          enablement: true
 
       - uses: actions/upload-pages-artifact@v3
         with:
