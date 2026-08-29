@@ -34,6 +34,10 @@
     "jp.colloid.lipsyncsetter": {
       "docs": "https://c-colloid.github.io/LipSyncSetter/",
       "repo": "https://github.com/c-colloid/LipSyncSetter"
+    },
+    "jp.colloid.fxcreator": {
+      "docs": "https://github.com/c-colloid/FXCreator#readme",
+      "repo": "https://github.com/c-colloid/FXCreator"
     }
   }
 }
