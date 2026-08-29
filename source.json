@@ -16,7 +16,7 @@
   ],
   "mergeListings": [
     "https://c-colloid.github.io/PBReplacer-VPM/index.json",
-    "https://c-colloid.github.io/LipSyncSetter/.vpm.json"
+    "https://raw.githubusercontent.com/c-colloid/LipSyncSetter/main/.vpm.json"
   ],
   "packagesMeta": {
     "jp.colloid.nemfdeform": {
