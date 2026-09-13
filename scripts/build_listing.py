@@ -110,11 +110,17 @@ def main():
     merge_existing_listings(packages, source.get("mergeListings", []))
     collect_release_packages(packages, source.get("githubRepos", []))
 
+    # VCC はリスティングの author を文字列として読む(オブジェクトだと
+    # "does not contain a valid repository listing" で追加に失敗する)
+    author = source["author"]
+    if isinstance(author, dict):
+        author = author.get("name", "")
+
     index = {
         "name": source["name"],
         "id": source["id"],
         "url": source["url"],
-        "author": source["author"],
+        "author": author,
         "packages": packages,
     }
     if source.get("description"):
