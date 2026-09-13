@@ -12,7 +12,8 @@
     "c-colloid/UITKFontFix",
     "c-colloid/PBReplacer-VPM",
     "c-colloid/LipSyncSetter",
-    "c-colloid/FXCreator"
+    "c-colloid/FXCreator",
+    "c-colloid/AgentPanelForUnity"
   ],
   "mergeListings": [
     "https://c-colloid.github.io/PBReplacer-VPM/index.json",
@@ -38,6 +39,10 @@
     "jp.colloid.fxcreator": {
       "docs": "https://github.com/c-colloid/FXCreator#readme",
       "repo": "https://github.com/c-colloid/FXCreator"
+    },
+    "jp.colloid.unity-agent-panel": {
+      "docs": "https://github.com/c-colloid/AgentPanelForUnity#readme",
+      "repo": "https://github.com/c-colloid/AgentPanelForUnity"
     }
   }
 }
