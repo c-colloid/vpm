@@ -44,6 +44,19 @@ def fetch_json(url):
         return json.loads(response.read().decode("utf-8-sig"))
 
 
+def normalize_manifest(manifest):
+    """VCC(Newtonsoft)が読める形に manifest を揃える。
+
+    VCC はパッケージ manifest の author を {name, email, url} のオブジェクトとして
+    デシリアライズする。文字列だと例外になり、そのリスティング全体が
+    "valid repository listing ではない" と拒否されるため、文字列は name に包む。
+    """
+    author = manifest.get("author")
+    if isinstance(author, str):
+        manifest["author"] = {"name": author}
+    return manifest
+
+
 def merge_existing_listings(packages, listing_urls):
     for url in listing_urls:
         try:
@@ -57,7 +70,7 @@ def merge_existing_listings(packages, listing_urls):
             added = 0
             for version, manifest in versions.items():
                 if version not in target:
-                    target[version] = manifest
+                    target[version] = normalize_manifest(manifest)
                     added += 1
             print(f"merged: {name} +{added} versions from {url}")
 
@@ -98,7 +111,7 @@ def collect_release_packages(packages, github_repos):
 
             manifest["url"] = zip_asset["browser_download_url"]
             # リリース走査の結果を既存リスティング由来より優先する
-            packages.setdefault(name, {"versions": {}})["versions"][version] = manifest
+            packages.setdefault(name, {"versions": {}})["versions"][version] = normalize_manifest(manifest)
             print(f"added: {name} {version} (from {repo})")
 
 
