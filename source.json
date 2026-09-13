@@ -2,10 +2,7 @@
   "name": "ｺﾛｲﾄﾞのVPMパッケージ",
   "id": "jp.colloid.vpm",
   "url": "https://c-colloid.github.io/vpm/index.json",
-  "author": {
-    "name": "ｺﾛｲﾄﾞ",
-    "url": "https://github.com/c-colloid"
-  },
+  "author": "ｺﾛｲﾄﾞ",
   "description": "colloid が配布する VRChat / Unity 向けパッケージのリスティング",
   "githubRepos": [
     "c-colloid/NDMFDeform",
