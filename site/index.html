@@ -216,8 +216,8 @@
     position: absolute; bottom: calc(100% + 6px); z-index: 5;
     transform: translateX(-50%);
     background: var(--ink); color: var(--bg);
-    font-size: 11.5px; line-height: 1.5; white-space: nowrap;
-    border-radius: 8px; padding: 5px 10px;
+    font-size: 11.5px; line-height: 1.55; white-space: pre;
+    border-radius: 8px; padding: 6px 11px;
     pointer-events: none;
     font-variant-numeric: tabular-nums;
   }
@@ -450,6 +450,26 @@
     });
   }
 
+  // history の versions(その日に数が動いたバージョンの累計)を順にたどり、
+  // 日付ごとの「バージョン別の増加数」に直す。最初の記録は基準値なので増加にしない
+  const TIP_VERSIONS = 4;
+  function dailyByVersion(name) {
+    const result = {};
+    const seen = {};
+    (downloads.history || []).forEach((entry, i) => {
+      const changed = (entry.versions || {})[name] || {};
+      const parts = [];
+      for (const version of Object.keys(changed)) {
+        const added = changed[version] - (seen[version] || 0);
+        seen[version] = changed[version];
+        if (i > 0 && added > 0) parts.push({ version, added });
+      }
+      parts.sort((a, b) => b.added - a.added || compareVersion(b.version, a.version));
+      if (parts.length > 0) result[entry.date] = parts;
+    });
+    return result;
+  }
+
   function makeDownloads(name) {
     const stat = (downloads.packages || {})[name];
     if (!stat) return null;
@@ -482,6 +502,7 @@
     const week = series.slice(-7).filter(d => d.added !== null);
     addFigure("直近" + week.length + "日", "+" + fmt(week.reduce((sum, d) => sum + d.added, 0)));
 
+    const byVersion = dailyByVersion(name);
     const max = Math.max(1, ...known.map(d => d.added));
     const chart = document.createElement("div");
     chart.className = "dl-chart";
@@ -497,7 +518,15 @@
       if (active) active.classList.remove("active");
       active = col;
       col.classList.add("active");
-      tip.textContent = shortDate(day.date) + "  +" + fmt(day.added) + "(累計 " + fmt(day.total) + ")";
+      const lines = [shortDate(day.date) + "  +" + fmt(day.added) + "(累計 " + fmt(day.total) + ")"];
+      // その日に動いたバージョンの内訳(多い順に上位だけ。残りはまとめる)
+      const parts = byVersion[day.date] || [];
+      for (const part of parts.slice(0, TIP_VERSIONS)) lines.push("v" + part.version + "  +" + fmt(part.added));
+      const rest = parts.slice(TIP_VERSIONS);
+      if (rest.length > 0) {
+        lines.push("ほか " + rest.length + " バージョン  +" + fmt(rest.reduce((sum, p) => sum + p.added, 0)));
+      }
+      tip.textContent = lines.join("\n");
       tip.hidden = false;
       // 端の列でツールチップがチャートからはみ出さないよう中央位置を丸める
       const half = tip.offsetWidth / 2;
