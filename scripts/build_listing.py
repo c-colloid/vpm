@@ -155,7 +155,8 @@ def collect_release_packages(packages, github_repos):
 def update_download_stats(previous, packages, asset_counts, now):
     """前回の統計 previous に今回のダウンロード数を反映した統計を返す。
 
-    - packages … 現在の累計(パッケージ合計とバージョン別)
+    - packages … 現在の累計(パッケージ合計とバージョン別)。offsets は、アセットの
+      差し替えで GitHub 側のカウントが 0 に戻ったバージョンについて持ち越した数
     - history … 1 日 1 件。totals はパッケージ別累計、versions はその日に数が動いた
       バージョンだけの累計(初回は全バージョン)。同じ日に複数回実行したら上書きする
 
@@ -166,13 +167,24 @@ def update_download_stats(previous, packages, asset_counts, now):
     prev_packages = previous.get("packages") or {}
     current = {}
     for name in sorted(set(prev_packages) | set(packages)):
-        versions = dict((prev_packages.get(name) or {}).get("versions") or {})
+        prev_entry = prev_packages.get(name) or {}
+        versions = dict(prev_entry.get("versions") or {})
+        offsets = dict(prev_entry.get("offsets") or {})
         for version, manifest in ((packages.get(name) or {}).get("versions") or {}).items():
-            count = asset_counts.get(asset_key(manifest.get("url")))
-            if count is not None:
-                versions[version] = count
+            raw = asset_counts.get(asset_key(manifest.get("url")))
+            if raw is None:
+                continue
+            before = versions.get(version, 0)
+            if raw + offsets.get(version, 0) < before:
+                # アセットが差し替えられて GitHub 側のカウントが 0 からやり直しになった。
+                # それまでの数を offset として持ち越し、累計が途切れないようにする
+                offsets[version] = before
+                print(f"info: {name} {version}: download count restarted, carrying over {before}")
+            versions[version] = raw + offsets.get(version, 0)
         if versions:
             current[name] = {"total": sum(versions.values()), "versions": versions}
+            if offsets:
+                current[name]["offsets"] = offsets
 
     if current == prev_packages:
         return previous

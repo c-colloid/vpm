@@ -222,6 +222,29 @@
     font-variant-numeric: tabular-nums;
   }
   .dl-tip[hidden] { display: none; }
+  .dl-versions { margin-top: 10px; }
+  .dl-versions summary {
+    display: inline-block; cursor: pointer; list-style: none;
+    font-size: 12px; font-weight: 700; color: var(--accent-ink);
+  }
+  .dl-versions summary::-webkit-details-marker { display: none; }
+  .dl-versions summary::before { content: "▸ "; }
+  .dl-versions[open] summary::before { content: "▾ "; }
+  .dl-vlist {
+    list-style: none; margin: 8px 0 0; padding: 8px 14px;
+    max-height: 232px; overflow-y: auto;
+    background: var(--bg); border-radius: 14px; box-shadow: var(--well-sm);
+  }
+  .dl-vlist li {
+    display: grid; grid-template-columns: minmax(0, 11em) 1fr auto;
+    align-items: center; gap: 12px;
+    font-family: var(--mono); font-size: 12px; line-height: 2;
+    font-variant-numeric: tabular-nums;
+  }
+  .dl-vname { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .dl-vname.pre { color: var(--muted); }
+  .dl-vbar { height: 6px; border-radius: 0 3px 3px 0; background: var(--accent); min-width: 1px; }
+  .dl-vbar.zero { background: transparent; }
   .status { color: var(--muted); text-align: center; padding: 56px 0; }
 
   footer {
@@ -249,6 +272,9 @@
     .card { flex-wrap: wrap; }
     .card-actions { flex-direction: row; width: 100%; }
     .card-actions a { flex: 1; }
+    /* 幅が足りないので横棒は出さず、バージョン名と数だけにする */
+    .dl-vlist li { grid-template-columns: minmax(0, 1fr) auto; }
+    .dl-vlist li > span:nth-child(2) { display: none; }
   }
   @media (prefers-reduced-motion: reduce) {
     * { transition: none !important; }
@@ -359,7 +385,8 @@
     if (pa.pre === pb.pre) return 0;
     if (pa.pre === null) return 1;   // 正式版 > プレリリース
     if (pb.pre === null) return -1;
-    return pa.pre.localeCompare(pb.pre);
+    // beta.10 > beta.9 になるよう、数字は数値として比べる
+    return pa.pre.localeCompare(pb.pre, undefined, { numeric: true });
   }
 
   const status = document.getElementById("status");
@@ -417,7 +444,7 @@
       return {
         date: day.date,
         total: day.total,
-        // アセットの差し替えで累計が減ることがあるので 0 で下限を切る
+        // 累計は減らない前提だが、手修正などで下がっても負の棒は描かない
         added: day.total === null || prev === null ? null : Math.max(0, day.total - prev),
       };
     });
@@ -447,7 +474,10 @@
 
     const series = dailySeries(name);
     const known = series.filter(d => d.added !== null);
-    if (known.length === 0) return box;   // 記録 1 日目はまだ増分が無い
+    if (known.length === 0) {   // 記録 1 日目はまだ増分が無い
+      box.appendChild(makeVersionList(stat));
+      return box;
+    }
 
     const week = series.slice(-7).filter(d => d.added !== null);
     addFigure("直近" + week.length + "日", "+" + fmt(week.reduce((sum, d) => sum + d.added, 0)));
@@ -508,8 +538,40 @@
     const to = document.createElement("span");
     to.textContent = shortDate(series[series.length - 1].date);
     axis.append(from, note, to);
-    box.append(chart, axis);
+    box.append(chart, axis, makeVersionList(stat));
     return box;
+  }
+
+  // バージョン別の累計(新しい順)。横棒は最多バージョンに対する比
+  function makeVersionList(stat) {
+    const details = document.createElement("details");
+    details.className = "dl-versions";
+    const summary = document.createElement("summary");
+    const versions = Object.keys(stat.versions || {}).sort(compareVersion).reverse();
+    summary.textContent = "バージョン別 (" + versions.length + ")";
+    const list = document.createElement("ul");
+    list.className = "dl-vlist";
+    const max = Math.max(1, ...versions.map(v => stat.versions[v]));
+    for (const version of versions) {
+      const count = stat.versions[version];
+      const row = document.createElement("li");
+      const label = document.createElement("span");
+      label.className = "dl-vname" + (version.includes("-") ? " pre" : "");
+      label.textContent = "v" + version;
+      label.title = "v" + version;
+      const track = document.createElement("span");
+      const bar = document.createElement("span");
+      bar.className = "dl-vbar" + (count > 0 ? "" : " zero");
+      bar.style.display = "block";
+      bar.style.width = (count / max * 100) + "%";
+      track.appendChild(bar);
+      const value = document.createElement("span");
+      value.textContent = fmt(count);
+      row.append(label, track, value);
+      list.appendChild(row);
+    }
+    details.append(summary, list);
+    return details;
   }
 
   const stack = document.getElementById("packages");
