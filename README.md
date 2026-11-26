@@ -22,10 +22,32 @@ https://c-colloid.github.io/vpm/index.json
   - `mergeListings` … 既存のホスト済みリスティング(PBReplacer-VPM / LipSyncSetter)を
     そのまま取り込む。**各リポジトリ側の改修は不要**。同名同バージョンはリリース走査を優先
   - `packagesMeta` … ランディングページに表示するドキュメント / GitHub リンク
-- `scripts/build_listing.py` … 上記を統合して `website/index.json` と `meta.json` を生成
+- `scripts/build_listing.py` … 上記を統合して `website/index.json` と `meta.json` を生成。
+  あわせてダウンロード数を集計して `downloads.json` を出力する(下記)
 - `site/` … ランディングページ(index.json を動的に読み込んで表示。URL はページ位置から
   自動算出するため、リポジトリ名を変えても `source.json` の `url` 以外の修正は不要)
 - `.github/workflows/build-listing.yml` … push / 6時間ごと / 手動実行で生成し GitHub Pages へデプロイ
+
+## ダウンロード数の記録
+
+各バージョンの zip は GitHub Releases のアセットなので、Releases API の `download_count`
+(累計値)をビルドのたびに読み取り、日次の推移として記録しています。
+
+- 履歴の保存先は **`stats` ブランチの `downloads.json`**(初回実行時にワークフローが自動作成)。
+  Pages は毎回作り直されるため、履歴だけ別ブランチに積んでいます
+- 公開先: https://c-colloid.github.io/vpm/downloads.json (ランディングページのカードに
+  累計と直近 30 日の日別グラフを表示)
+- `packages` … 現在の累計(パッケージ合計 `total` とバージョン別 `versions`)
+- `history` … 1 日 1 件(日付は JST)。`totals` はパッケージ別の累計、`versions` はその日に
+  数が動いたバージョンだけの累計(初回は全バージョン)。どのパッケージも動かなかった日は
+  記録されないので、欠けている日は「増加 0」として読む
+
+数字の注意点:
+
+- 記録開始より前の推移は取れない(API が返すのは累計のみ)
+- VCC / ALCOM のキャッシュにより同じバージョンの再導入は数えられず、一方でブラウザからの
+  手動ダウンロードやボットの取得は含まれる。ユニークユーザー数ではない
+- リリースのアセットを差し替えると、そのバージョンのカウントは 0 に戻る
 
 ## 初回セットアップ
 
