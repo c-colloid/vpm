@@ -253,6 +253,8 @@
   .dl-vbar { display: block; height: 6px; border-radius: 0 3px 3px 0; background: var(--accent); min-width: 1px; }
   .dl-vbar.zero { background: transparent; }
   .dl-hint { font-size: 11.5px; color: var(--muted); margin: 6px 0 0; }
+  .dl-filter { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 10px; }
+  .dl-filter[hidden] { display: none; }
   .dl-reset {
     font-family: var(--sans); font-size: 11.5px; font-weight: 700;
     color: var(--accent-ink);
@@ -551,6 +553,20 @@
     };
     chart.addEventListener("pointerleave", hide);
 
+    // 絞り込み中の表示と解除ボタン。ツールチップはグラフの上に出るので、
+    // 重ならないようグラフの下(軸の下)に置く
+    const filter = document.createElement("div");
+    filter.className = "dl-filter";
+    filter.hidden = true;
+    const filterLabel = document.createElement("span");
+    filterLabel.className = "dl-label";
+    const reset = document.createElement("button");
+    reset.type = "button";
+    reset.className = "dl-reset";
+    reset.textContent = "全体に戻す";
+    reset.addEventListener("click", () => draw(null));
+    filter.append(filterLabel, reset);
+
     let selected = null;   // null = 全バージョン合計
     const list = makeVersionList(stat, version => draw(version === selected ? null : version));
 
@@ -568,14 +584,8 @@
       addFigure(version === null ? "累計ダウンロード" : "v" + version + " の累計",
         fmt(version === null ? stat.total : stat.versions[version]));
       addFigure("直近" + week.length + "日", "+" + fmt(week.reduce((sum, d) => sum + d.added, 0)));
-      if (version !== null) {
-        const reset = document.createElement("button");
-        reset.type = "button";
-        reset.className = "dl-reset";
-        reset.textContent = "全体に戻す";
-        reset.addEventListener("click", () => draw(null));
-        figures.appendChild(reset);
-      }
+      filter.hidden = version === null;
+      filterLabel.textContent = version === null ? "" : "v" + version + " のみ表示中";
 
       chart.textContent = "";
       chart.setAttribute("aria-label",
@@ -633,7 +643,7 @@
     }
 
     draw(null);
-    box.append(chart, axis, list.details);
+    box.append(chart, axis, filter, list.details);
     return box;
   }
 
