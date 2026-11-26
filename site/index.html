@@ -20,6 +20,7 @@
     --accent-ink: #3050e8;
     --accent-hi: #5b78ff;
     --amber: #b07a14;
+    --grid: rgba(120, 128, 154, 0.22);
     --mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", monospace;
     --sans: "IBM Plex Sans JP", "Hiragino Sans", "Noto Sans JP", sans-serif;
     --disp: "Zen Kaku Gothic New", "Hiragino Sans", sans-serif;
@@ -179,6 +180,71 @@
     padding: 2px 20px;
   }
   .card-actions a.quiet:hover { color: var(--accent-ink); transform: none; }
+  /* ---- ダウンロード数: 累計と日別の推移 ---- */
+  .dl { margin-top: 14px; max-width: 44em; }
+  .dl-figures { display: flex; flex-wrap: wrap; gap: 4px 22px; align-items: baseline; }
+  .dl-figure { display: flex; align-items: baseline; gap: 7px; }
+  .dl-label { font-size: 11.5px; color: var(--muted); }
+  .dl-value {
+    font-family: var(--mono); font-size: 14px; font-weight: 500; color: var(--ink);
+    font-variant-numeric: tabular-nums;
+  }
+  .dl-chart {
+    position: relative; display: flex; align-items: stretch;
+    height: 46px; margin-top: 8px;
+    border-bottom: 1px solid var(--grid);
+  }
+  .dl-col {
+    flex: 1; min-width: 0;
+    display: flex; align-items: flex-end; justify-content: center;
+    padding: 0 1px;
+  }
+  .dl-col.unknown { background: repeating-linear-gradient(135deg, transparent 0 3px, var(--grid) 3px 4px); opacity: 0.6; }
+  .dl-bar {
+    width: 100%; max-width: 24px;
+    background: var(--accent);
+    border-radius: 4px 4px 0 0;
+  }
+  .dl-col:hover .dl-bar, .dl-col.active .dl-bar { background: var(--accent-ink); }
+  .dl-col:hover, .dl-col.active { background-color: var(--grid); }
+  .dl-axis {
+    display: flex; justify-content: space-between;
+    font-family: var(--mono); font-size: 10.5px; color: var(--muted);
+    margin-top: 3px; font-variant-numeric: tabular-nums;
+  }
+  .dl-tip {
+    position: absolute; bottom: calc(100% + 6px); z-index: 5;
+    transform: translateX(-50%);
+    background: var(--ink); color: var(--bg);
+    font-size: 11.5px; line-height: 1.5; white-space: nowrap;
+    border-radius: 8px; padding: 5px 10px;
+    pointer-events: none;
+    font-variant-numeric: tabular-nums;
+  }
+  .dl-tip[hidden] { display: none; }
+  .dl-versions { margin-top: 10px; }
+  .dl-versions summary {
+    display: inline-block; cursor: pointer; list-style: none;
+    font-size: 12px; font-weight: 700; color: var(--accent-ink);
+  }
+  .dl-versions summary::-webkit-details-marker { display: none; }
+  .dl-versions summary::before { content: "▸ "; }
+  .dl-versions[open] summary::before { content: "▾ "; }
+  .dl-vlist {
+    list-style: none; margin: 8px 0 0; padding: 8px 14px;
+    max-height: 232px; overflow-y: auto;
+    background: var(--bg); border-radius: 14px; box-shadow: var(--well-sm);
+  }
+  .dl-vlist li {
+    display: grid; grid-template-columns: minmax(0, 11em) 1fr auto;
+    align-items: center; gap: 12px;
+    font-family: var(--mono); font-size: 12px; line-height: 2;
+    font-variant-numeric: tabular-nums;
+  }
+  .dl-vname { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .dl-vname.pre { color: var(--muted); }
+  .dl-vbar { height: 6px; border-radius: 0 3px 3px 0; background: var(--accent); min-width: 1px; }
+  .dl-vbar.zero { background: transparent; }
   .status { color: var(--muted); text-align: center; padding: 56px 0; }
 
   footer {
@@ -206,6 +272,9 @@
     .card { flex-wrap: wrap; }
     .card-actions { flex-direction: row; width: 100%; }
     .card-actions a { flex: 1; }
+    /* 幅が足りないので横棒は出さず、バージョン名と数だけにする */
+    .dl-vlist li { grid-template-columns: minmax(0, 1fr) auto; }
+    .dl-vlist li > span:nth-child(2) { display: none; }
   }
   @media (prefers-reduced-motion: reduce) {
     * { transition: none !important; }
@@ -316,14 +385,16 @@
     if (pa.pre === pb.pre) return 0;
     if (pa.pre === null) return 1;   // 正式版 > プレリリース
     if (pb.pre === null) return -1;
-    return pa.pre.localeCompare(pb.pre);
+    // beta.10 > beta.9 になるよう、数字は数値として比べる
+    return pa.pre.localeCompare(pb.pre, undefined, { numeric: true });
   }
 
   const status = document.getElementById("status");
-  let index = null, meta = { packages: {} };
+  let index = null, meta = { packages: {} }, downloads = {};
   try {
     index = await (await fetch("index.json", { cache: "no-cache" })).json();
     try { meta = await (await fetch("meta.json", { cache: "no-cache" })).json(); } catch (_) {}
+    try { downloads = await (await fetch("downloads.json", { cache: "no-cache" })).json(); } catch (_) {}
   } catch (_) {
     status.hidden = false;
     status.textContent = "index.json を読み込めませんでした。";
@@ -342,6 +413,166 @@
 
   const accent = getComputedStyle(document.documentElement)
     .getPropertyValue("--accent").trim() || "#3b5bfd";
+
+  // ---- ダウンロード数(downloads.json): 累計と直近 30 日の日別推移 ----
+  const DL_DAYS = 30;
+  const fmt = n => Number(n).toLocaleString("ja-JP");
+  const addDays = (date, n) => {
+    const d = new Date(date + "T00:00:00Z");
+    d.setUTCDate(d.getUTCDate() + n);
+    return d.toISOString().slice(0, 10);
+  };
+  const shortDate = date => Number(date.slice(5, 7)) + "/" + Number(date.slice(8, 10));
+
+  // 記録の無い日は直前の累計を引き継ぐ(= その日の増加は 0)。記録開始より前は null
+  function dailySeries(name) {
+    const history = (downloads.history || []).filter(h => h.totals && name in h.totals);
+    if (history.length === 0) return [];
+    const last = (downloads.history[downloads.history.length - 1] || {}).date;
+    const days = [];
+    let cursor = 0, total = null;
+    for (let i = DL_DAYS; i >= 0; i--) {
+      const date = addDays(last, -i);
+      while (cursor < history.length && history[cursor].date <= date) {
+        total = history[cursor].totals[name];
+        cursor++;
+      }
+      days.push({ date, total });
+    }
+    return days.slice(1).map((day, i) => {
+      const prev = days[i].total;
+      return {
+        date: day.date,
+        total: day.total,
+        // 累計は減らない前提だが、手修正などで下がっても負の棒は描かない
+        added: day.total === null || prev === null ? null : Math.max(0, day.total - prev),
+      };
+    });
+  }
+
+  function makeDownloads(name) {
+    const stat = (downloads.packages || {})[name];
+    if (!stat) return null;
+    const box = document.createElement("div");
+    box.className = "dl";
+    const figures = document.createElement("div");
+    figures.className = "dl-figures";
+    const addFigure = (label, value) => {
+      const figure = document.createElement("span");
+      figure.className = "dl-figure";
+      const l = document.createElement("span");
+      l.className = "dl-label";
+      l.textContent = label;
+      const v = document.createElement("span");
+      v.className = "dl-value";
+      v.textContent = value;
+      figure.append(l, v);
+      figures.appendChild(figure);
+    };
+    addFigure("累計ダウンロード", fmt(stat.total));
+    box.appendChild(figures);
+
+    const series = dailySeries(name);
+    const known = series.filter(d => d.added !== null);
+    if (known.length === 0) {   // 記録 1 日目はまだ増分が無い
+      box.appendChild(makeVersionList(stat));
+      return box;
+    }
+
+    const week = series.slice(-7).filter(d => d.added !== null);
+    addFigure("直近" + week.length + "日", "+" + fmt(week.reduce((sum, d) => sum + d.added, 0)));
+
+    const max = Math.max(1, ...known.map(d => d.added));
+    const chart = document.createElement("div");
+    chart.className = "dl-chart";
+    chart.setAttribute("role", "img");
+    chart.setAttribute("aria-label",
+      "日別ダウンロード数 " + shortDate(known[0].date) + "〜" + shortDate(series[series.length - 1].date) +
+      "、合計 " + fmt(known.reduce((sum, d) => sum + d.added, 0)) + "、最大 " + fmt(max) + " / 日");
+    const tip = document.createElement("div");
+    tip.className = "dl-tip";
+    tip.hidden = true;
+    let active = null;
+    const show = (col, day) => {
+      if (active) active.classList.remove("active");
+      active = col;
+      col.classList.add("active");
+      tip.textContent = shortDate(day.date) + "  +" + fmt(day.added) + "(累計 " + fmt(day.total) + ")";
+      tip.hidden = false;
+      // 端の列でツールチップがチャートからはみ出さないよう中央位置を丸める
+      const half = tip.offsetWidth / 2;
+      const center = col.offsetLeft + col.offsetWidth / 2;
+      tip.style.left = Math.min(Math.max(center, half), chart.clientWidth - half) + "px";
+    };
+    const hide = () => {
+      if (active) active.classList.remove("active");
+      active = null;
+      tip.hidden = true;
+    };
+    for (const day of series) {
+      const col = document.createElement("div");
+      col.className = "dl-col";
+      if (day.added === null) {
+        col.classList.add("unknown");
+      } else {
+        if (day.added > 0) {
+          const bar = document.createElement("div");
+          bar.className = "dl-bar";
+          bar.style.height = Math.max(2, Math.round(day.added / max * 40)) + "px";
+          col.appendChild(bar);
+        }
+        col.addEventListener("pointerenter", () => show(col, day));
+        col.addEventListener("pointerdown", () => show(col, day));
+      }
+      chart.appendChild(col);
+    }
+    chart.addEventListener("pointerleave", hide);
+    chart.appendChild(tip);
+
+    const axis = document.createElement("div");
+    axis.className = "dl-axis";
+    const from = document.createElement("span");
+    from.textContent = shortDate(series[0].date);
+    const note = document.createElement("span");
+    note.textContent = "日別 · 最大 " + fmt(max);
+    const to = document.createElement("span");
+    to.textContent = shortDate(series[series.length - 1].date);
+    axis.append(from, note, to);
+    box.append(chart, axis, makeVersionList(stat));
+    return box;
+  }
+
+  // バージョン別の累計(新しい順)。横棒は最多バージョンに対する比
+  function makeVersionList(stat) {
+    const details = document.createElement("details");
+    details.className = "dl-versions";
+    const summary = document.createElement("summary");
+    const versions = Object.keys(stat.versions || {}).sort(compareVersion).reverse();
+    summary.textContent = "バージョン別 (" + versions.length + ")";
+    const list = document.createElement("ul");
+    list.className = "dl-vlist";
+    const max = Math.max(1, ...versions.map(v => stat.versions[v]));
+    for (const version of versions) {
+      const count = stat.versions[version];
+      const row = document.createElement("li");
+      const label = document.createElement("span");
+      label.className = "dl-vname" + (version.includes("-") ? " pre" : "");
+      label.textContent = "v" + version;
+      label.title = "v" + version;
+      const track = document.createElement("span");
+      const bar = document.createElement("span");
+      bar.className = "dl-vbar" + (count > 0 ? "" : " zero");
+      bar.style.display = "block";
+      bar.style.width = (count / max * 100) + "%";
+      track.appendChild(bar);
+      const value = document.createElement("span");
+      value.textContent = fmt(count);
+      row.append(label, track, value);
+      list.appendChild(row);
+    }
+    details.append(summary, list);
+    return details;
+  }
 
   const stack = document.getElementById("packages");
   const names = Object.keys(index.packages || {});
@@ -402,6 +633,8 @@
     desc.className = "pkg-desc";
     desc.textContent = entry.manifest.description || "";
     main.append(head, id, desc);
+    const dl = makeDownloads(entry.name);
+    if (dl) main.appendChild(dl);
 
     const actions = document.createElement("div");
     actions.className = "card-actions";

@@ -1,5 +1,7 @@
 # source.json に登録したリポジトリの GitHub Releases から index.json を生成し、
 # GitHub Pages へデプロイする。
+# あわせて zip のダウンロード数を集計し、日次の推移を stats ブランチの downloads.json に
+# 蓄積する(ブランチは初回実行時に自動作成。Pages は毎回作り直されるため履歴の置き場が別に要る)。
 # 新しいリリースは 6 時間ごとのスケジュール実行または手動実行(workflow_dispatch)で反映される。
 # 事前設定: リポジトリの Settings > Pages > Source を "GitHub Actions" にすること。
 name: Build listing
@@ -14,7 +16,7 @@ on:
     - cron: "23 */6 * * *"
 
 permissions:
-  contents: read
+  contents: write # stats ブランチへダウンロード数の履歴を push するため
   pages: write
   id-token: write
 
@@ -31,10 +33,41 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      - name: Restore download history
+        run: |
+          status=0
+          git ls-remote --exit-code --heads origin stats > /dev/null || status=$?
+          if [ "$status" -eq 0 ]; then
+            git fetch --depth 1 origin stats
+            git worktree add -B stats "$RUNNER_TEMP/stats" FETCH_HEAD
+          elif [ "$status" -eq 2 ]; then
+            # stats ブランチがまだ無い(初回): 空のブランチから始める
+            git worktree add --orphan -b stats "$RUNNER_TEMP/stats"
+          else
+            # 通信失敗などで有無を判定できないときは、履歴を空で上書きしないよう中断する
+            exit "$status"
+          fi
+
       - name: Build index.json
         run: python3 scripts/build_listing.py
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          STATS_DIR: ${{ runner.temp }}/stats
+
+      # 履歴の保存に失敗してもリスティングのデプロイは止めない
+      - name: Save download history
+        continue-on-error: true
+        working-directory: ${{ runner.temp }}/stats
+        run: |
+          git add downloads.json
+          if git diff --cached --quiet; then
+            echo "no change in download counts"
+            exit 0
+          fi
+          git -c user.name="github-actions[bot]" \
+              -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+              commit -m "Update download stats"
+          git push origin HEAD:stats
 
       - uses: actions/configure-pages@v6
         with:
