@@ -1,7 +1,7 @@
 {
  "schema": 1,
  "timezone": "Asia/Tokyo",
- "updatedAt": "2026-11-28T01:30:11Z",
+ "updatedAt": "2026-11-28T15:40:18Z",
  "packages": {
   "jp.colloid.lipsyncsetter": {
    "total": 17,
@@ -12,10 +12,10 @@
    }
   },
   "jp.colloid.nemfdeform": {
-   "total": 807,
+   "total": 811,
    "versions": {
-    "0.1.1": 446,
-    "0.1.0": 361
+    "0.1.1": 448,
+    "0.1.0": 363
    }
   },
   "jp.colloid.pbreplacer": {
@@ -323,6 +323,22 @@
      "0.62.0-beta.7": 5,
      "0.62.0-beta.3": 5,
      "0.61.1": 7
+    }
+   }
+  },
+  {
+   "date": "2026-11-29",
+   "totals": {
+    "jp.colloid.lipsyncsetter": 17,
+    "jp.colloid.nemfdeform": 811,
+    "jp.colloid.pbreplacer": 15846,
+    "jp.colloid.uitk-font-fix": 130,
+    "jp.colloid.unity-agent-panel": 219
+   },
+   "versions": {
+    "jp.colloid.nemfdeform": {
+     "0.1.1": 448,
+     "0.1.0": 363
     }
    }
   }
